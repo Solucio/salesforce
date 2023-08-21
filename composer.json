@@ -1,5 +1,5 @@
 {
-  "name": "suaustralia/salesforce",
+  "name": "genesis-global/salesforce",
   "description": "Provides OAuth2 authentication and exposes Salesforce REST API methods in OOP friendly way.",
   "type": "library",
   "keywords": [ "salesforce" ],
