@@ -1,5 +1,4 @@
 <?php
-
 namespace GenesisGlobal\Salesforce\Authentication;
 
 
@@ -71,8 +70,8 @@ class SalesforceUsernamePasswordAuthenticator implements AuthenticatorInterface
         HttpClientInterface $httpClient,
         UrlGeneratorInterface $urlGenerator,
         CredentialsKeeperInterface $credentialsKeeper,
-        AuthenticationCallbackInterface $authenticationCallback = null)
-    {
+        AuthenticationCallbackInterface $authenticationCallback = null
+    ) {
         $this->httpClient = $httpClient;
         $this->urlGenerator = $urlGenerator;
         $this->authenticationCallback = $authenticationCallback;
@@ -119,6 +118,34 @@ class SalesforceUsernamePasswordAuthenticator implements AuthenticatorInterface
     public function refreshToken()
     {
         $this->token = null;
+    }
+
+    /**
+     * Reset / force new credentials
+     *
+     * @param string $username
+     * @param string $password
+     * @param string $securityToken
+     * @param string $clientId
+     * @param string $clientSecret
+     *
+     * @return void
+     */
+    public function resetCredentials($username, $password, $securityToken, $clientId = null, $clientSecret = null)
+    {
+        $this->username = $username;
+        $this->password = $password;
+        $this->securityToken = $securityToken;
+
+        if (!empty($clientId)) {
+            $this->clientId = $clientId;
+        }
+
+        if (!empty($clientSecret)) {
+            $this->clientSecret = $clientSecret;
+        }
+
+        $this->refreshToken();
     }
 
     /**

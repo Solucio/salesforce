@@ -1,5 +1,4 @@
 <?php
-
 namespace GenesisGlobal\Salesforce\Client;
 
 use GenesisGlobal\Salesforce\Authentication\AuthenticatorInterface;
@@ -8,16 +7,12 @@ use GenesisGlobal\Salesforce\Http\HttpClientInterface;
 use GenesisGlobal\Salesforce\Http\Response\ResponseCreatorInterface;
 use GenesisGlobal\Salesforce\Http\Response\ResponseInterface;
 use GenesisGlobal\Salesforce\Http\UrlGeneratorInterface;
-use Psr\Log\LoggerAwareInterface;
-use Psr\Log\LoggerInterface;
-use Psr\Log\LogLevel;
-use Httpful\Http;
 
 /**
  * Class SalesforceClient
  * @package GenesisGlobal\Salesforce\Client
  */
-class SalesforceClient implements SalesforceClientInterface, LoggerAwareInterface
+class SalesforceClient implements SalesforceClientInterface
 {
     /**
      * Content of body type json
@@ -45,18 +40,6 @@ class SalesforceClient implements SalesforceClientInterface, LoggerAwareInterfac
     protected $responseCreator;
 
     /**
-     * @var LoggerInterface
-     */
-    protected $logger;
-
-    /**
-     * @var PerformanceLoggerInterface
-     */
-    protected $performanceLogger;
-
-    protected $timer;
-
-    /**
      * SalesforceClient constructor.
      * @param HttpClientInterface $httpClient
      * @param UrlGeneratorInterface $urlGenerator
@@ -67,8 +50,9 @@ class SalesforceClient implements SalesforceClientInterface, LoggerAwareInterfac
         HttpClientInterface $httpClient,
         UrlGeneratorInterface $urlGenerator,
         AuthenticatorInterface $authenticator,
-        ResponseCreatorInterface $responseCreator)
-    {
+        ResponseCreatorInterface $responseCreator
+    ) {
+
         $this->httpClient = $httpClient;
         $this->urlGenerator = $urlGenerator;
         $this->authenticator = $authenticator;
@@ -78,24 +62,42 @@ class SalesforceClient implements SalesforceClientInterface, LoggerAwareInterfac
     /**
      * @param string $action
      * @param null $query
+     * @param boolean $relativeToRoot Supplied action is relative to Root path
      * @return ResponseInterface
      */
-    public function get($action = null, $query = null)
+    public function get($action = null, $query = null, $relativeToRoot = false)
     {
-        $url = $this->urlGenerator->getUrl($action, $this->resolveParams($query));
-
         try {
-            $this->requestStartTime();
+            //die($this->urlGenerator->getUrl($action, $this->resolveParams($query)));
             $salesforceResponse = $this->httpClient->get(
-                $url,
-                [ 'headers' => $this->getAuthorizationHeaders() ]
+                $this->urlGenerator->getUrl($action, $this->resolveParams($query), $relativeToRoot),
+                ['headers' => $this->getAuthorizationHeaders()]
             );
+            return $this->responseCreator->create($salesforceResponse);
         } catch (BadResponseException $e) {
-            return $this->manageError($e, $url, null, Http::GET);
+            // we return Response with success=false
+            return $this->responseCreator->create($e->getResponse());
         }
-        $response = $this->responseCreator->create($salesforceResponse);
-        $this->logRequest($url, null, $response->getCode(), $response->getContent(), Http::GET);
-        return $this->responseCreator->create($salesforceResponse);
+    }
+
+    /**
+     * @param string $action
+     * @param null $query
+     * @return ResponseInterface
+     */
+    public function getApex($action = null, $query = null)
+    {
+        try {
+            //die($this->urlGenerator->getUrl($action, $this->resolveParams($query)));
+            $salesforceResponse = $this->httpClient->get(
+                $this->urlGenerator->getUrlApex($action, $this->resolveParams($query)),
+                ['headers' => $this->getAuthorizationHeaders()]
+            );
+            return $this->responseCreator->create($salesforceResponse);
+        } catch (BadResponseException $e) {
+            // we return Response with success=false
+            return $this->responseCreator->create($e->getResponse());
+        }
     }
 
     /**
@@ -106,21 +108,18 @@ class SalesforceClient implements SalesforceClientInterface, LoggerAwareInterfac
      */
     public function post($action = null, $data = null, $query = null)
     {
-        $url = $this->urlGenerator->getUrl($action, $this->resolveParams($query));
         try {
-            $this->requestStartTime();
             $httpResponse = $this->httpClient->post(
-                $url,
+                $this->urlGenerator->getUrl($action, $this->resolveParams($query)),
                 $data,
                 self::BODY_TYPE_JSON,
-                [ 'headers' => $this->getAuthorizationHeaders() ]
+                ['headers' => $this->getAuthorizationHeaders()]
             );
+            return $this->responseCreator->create($httpResponse);
         } catch (BadResponseException $e) {
-            return $this->manageError($e, $url, $data, Http::POST);
+            // we return Response with success=false
+            return $this->responseCreator->create($e->getResponse());
         }
-        $response = $this->responseCreator->create($httpResponse);
-        $this->logRequest($url, $data, $response->getCode(), $response->getContent(), Http::POST);
-        return $response;
     }
 
     /**
@@ -129,23 +128,65 @@ class SalesforceClient implements SalesforceClientInterface, LoggerAwareInterfac
      * @param null $query
      * @return ResponseInterface
      */
-    public function patch($action = null, $data = null, $query = null)
+    public function postApex($action = null, $data = null, $query = null)
     {
-        $url = $this->urlGenerator->getUrl($action, $this->resolveParams($query));
         try {
-            $this->requestStartTime();
-            $httpResponse = $this->httpClient->patch(
-                $url,
+            $httpResponse = $this->httpClient->post(
+                $this->urlGenerator->getUrlApex($action, $this->resolveParams($query)),
                 $data,
                 self::BODY_TYPE_JSON,
-                [ 'headers' => $this->getAuthorizationHeaders() ]
+                ['headers' => $this->getAuthorizationHeaders()]
             );
+            return $this->responseCreator->create($httpResponse);
         } catch (BadResponseException $e) {
-            return $this->manageError($e, $url, $data, Http::PATCH);
+            // we return Response with success=false
+            return $this->responseCreator->create($e->getResponse());
         }
-        $response = $this->responseCreator->create($httpResponse);
-        $this->logRequest($url, $data, $response->getCode(), $response->getContent(), Http::PATCH);
-        return $response;
+    }
+
+    /**
+     * @param string|null $action
+     * @param null $data
+     * @param null $query
+     * @param array $headers
+     * @return ResponseInterface
+     */
+    public function patch($action = null, $data = null, $query = null, $headers = [])
+    {
+        try {
+            $httpResponse = $this->httpClient->patch(
+                $this->urlGenerator->getUrl($action, $this->resolveParams($query)),
+                $data,
+                self::BODY_TYPE_JSON,
+                ['headers' => array_merge($headers, $this->getAuthorizationHeaders())]
+            );
+            return $this->responseCreator->create($httpResponse);
+        } catch (BadResponseException $e) {
+            // we return Response with success=false
+            return $this->responseCreator->create($e->getResponse());
+        }
+    }
+
+    /**
+     * @param string|null $action
+     * @param null $data
+     * @param null $query
+     * @return ResponseInterface
+     */
+    public function patchApex($action = null, $data = null, $query = null)
+    {
+        try {
+            $httpResponse = $this->httpClient->patch(
+                $this->urlGenerator->getUrlApex($action, $this->resolveParams($query)),
+                $data,
+                self::BODY_TYPE_JSON,
+                ['headers' => $this->getAuthorizationHeaders()]
+            );
+            return $this->responseCreator->create($httpResponse);
+        } catch (BadResponseException $e) {
+            // we return Response with success=false
+            return $this->responseCreator->create($e->getResponse());
+        }
     }
 
     /**
@@ -169,75 +210,5 @@ class SalesforceClient implements SalesforceClientInterface, LoggerAwareInterfac
         return [
             'Authorization' => 'OAuth ' . $this->authenticator->getAccessToken()
         ];
-    }
-
-    protected function requestStartTime(): void
-    {
-        if (!$this->performanceLogger) {
-            return;
-        }
-
-        $this->timer = microtime(true);
-    }
-
-    protected function requestStopTime(): void
-    {
-        $stop = microtime(true);
-        $this->timer = $stop - $this->timer;
-    }
-
-    protected function performanceLog($url, $method, $responseCode): void
-    {
-        if ($this->performanceLogger) {
-            $this->requestStopTime();
-            $this->performanceLogger->log($url, $this->timer, $method, $responseCode);
-        }
-    }
-
-    /**
-     * @param LoggerInterface $logger
-     */
-    public function setLogger(LoggerInterface $logger)
-    {
-        $this->logger = $logger;
-    }
-
-    /**
-     * @param PerformanceLoggerInterface $performanceLogger
-     */
-    public function setPerformanceLogger(PerformanceLoggerInterface $performanceLogger)
-    {
-        $this->performanceLogger = $performanceLogger;
-    }
-
-    /**
-     * @param BadResponseException $e
-     * @param $url
-     * @param null $data
-     * @return ResponseInterface
-     */
-    protected function manageError(BadResponseException $e, $url, $data = null, $method = null, $responseCode = 500)
-    {
-        $this->performanceLog($url, $method, $responseCode);
-        if ($this->logger) {
-            $this->logger->error($e->getMessage(), [
-                'url' => $url,
-                'data' => ($data ? $data: 'empty')
-            ]);
-        }
-        return $this->responseCreator->create($e->getResponse());
-    }
-
-    protected function logRequest($url, $data = null, $responseCode = null, $response = null, $method = null)
-    {
-        $this->performanceLog($url, $method, $responseCode);
-        if ($this->logger) {
-            $this->logger->log(LogLevel::DEBUG, '[Request Log]', [
-                'url' => $url,
-                'data' => ($data ? $data : 'empty'),
-                'responseCode' => $responseCode,
-                'response' => $response
-            ]);
-        }
     }
 }

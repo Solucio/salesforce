@@ -1,5 +1,4 @@
 <?php
-
 namespace GenesisGlobal\Salesforce\Http;
 
 
@@ -10,9 +9,10 @@ namespace GenesisGlobal\Salesforce\Http;
 interface UrlGeneratorInterface
 {
     /**
-     * @param $action
+     * @param null $action
      * @param null $parameters
+     * @param boolean $relativeToRoot Supplied action is relative to Root path
      * @return string
      */
-    public function getUrl($action = null, $parameters = null);
+    public function getUrl($action = null, $parameters = null, $relativeToRoot = false);
 }

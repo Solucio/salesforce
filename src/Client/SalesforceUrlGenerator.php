@@ -1,7 +1,5 @@
 <?php
-
 namespace GenesisGlobal\Salesforce\Client;
-
 
 use GenesisGlobal\Salesforce\Http\UrlGeneratorInterface;
 
@@ -36,13 +34,13 @@ class SalesforceUrlGenerator implements UrlGeneratorInterface
     /**
      * @param null $action
      * @param null $parameters
+     * @param boolean $relativeToRoot Supplied action is relative to Root path
      * @return string
      */
-    public function getUrl($action = null, $parameters = null)
+    public function getUrl($action = null, $parameters = null, $relativeToRoot = false)
     {
-        $url = $this->getBasePath();
+        $url = $this->getBasePath($relativeToRoot);
         if ($action) {
-
             // make sure action doesn't have forwarding slash
             $url = $url . ltrim($action, "/");
         }
@@ -52,12 +50,47 @@ class SalesforceUrlGenerator implements UrlGeneratorInterface
     }
 
     /**
+     * @param null $action
+     * @param null $parameters
      * @return string
      */
-    public function getBasePath()
+    public function getUrlApex($action = null, $parameters = null)
+    {
+        $url = $this->getBasePathApex();
+        if ($action) {
+            // make sure action doesn't have forwarding slash
+            $url = $url . ltrim($action, "/");
+        }
+        $url = $this->addParameters($url, $parameters);
+
+        return $url;
+    }
+
+    /**
+     * @param boolean $relativeToRoot Supplied action is relative to Root path
+     * @return string
+     */
+    public function getBasePath($relativeToRoot = false)
     {
         // make sure we got only one slash there :)
-        return rtrim($this->endpoint, "/") . '/services/data/' . $this->version . '/';
+        $basePath = rtrim($this->endpoint, "/");
+
+        if (!$relativeToRoot) {
+            $basePath .= '/services/data/' . $this->version;
+        }
+
+        $basePath .= '/';
+
+        return $basePath;
+    }
+
+    /**
+     * @return string
+     */
+    public function getBasePathApex()
+    {
+        // make sure we got only one slash there :)
+        return rtrim($this->endpoint, "/") . '/services/apexrest/';
     }
 
     /**
@@ -68,10 +101,10 @@ class SalesforceUrlGenerator implements UrlGeneratorInterface
     protected function addParameters($path, $parameters)
     {
         if ($parameters && is_array($parameters)) {
-
             $glue = '?';
             foreach ($parameters as $key => $value) {
-                $path .= $glue . $key . '=' . strtr($value, ' ', '+');
+                //$path .= $glue . $key . '=' . strtr($value, ' ', '+');
+                $path .= $glue . $key . '=' . urlencode($value);
                 $glue = '&';
             }
         }

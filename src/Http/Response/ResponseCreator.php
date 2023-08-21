@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Created by PhpStorm.
  * User: qbik
@@ -32,11 +33,13 @@ class ResponseCreator implements ResponseCreatorInterface
 
             // if errors exist, lets add it!
             if (isset($httpResponse->body->errors) && !empty($httpResponse->body->errors)) {
-
                 foreach ($httpResponse->body->errors as $errorFromSalesforce) {
+                    $errorCode = (is_object($errorFromSalesforce) and isset($errorFromSalesforce->errorCode) ? $errorFromSalesforce->errorCode : null);
+                    $errorMessage = (is_object($errorFromSalesforce) and isset($errorFromSalesforce->message) ? $errorFromSalesforce->message : $errorFromSalesforce);
+
                     $error = new ResponseError();
-                    $error->setCode($errorFromSalesforce->errorCode);
-                    $error->setMessage($errorFromSalesforce->message);
+                    $error->setCode($errorCode);
+                    $error->setMessage($errorMessage);
                     $response->addError($error);
                 }
             }

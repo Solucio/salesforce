@@ -1,5 +1,4 @@
 <?php
-
 namespace GenesisGlobal\Salesforce\Authentication;
 
 
@@ -30,7 +29,7 @@ class SalesforceAuthenticatorUrlGenerator implements UrlGeneratorInterface
      * @param null $parameters
      * @return string
      */
-    public function getUrl($action = null, $parameters = null)
+    public function getUrl($action = null, $parameters = null, $relativeToRoot = false)
     {
         return $this->getBasePath();
 
